@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "dac70e80-af67-47ec-876b-4b396a444701"
+				"spark.autotune.trackingId": "808f2701-ed2e-49ac-a9b1-04706ab6f5be"
 			}
 		},
 		"metadata": {
@@ -233,19 +233,6 @@
 					}
 				},
 				"source": [
-					""
-				]
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
 					"#### 6. How to get the minimum, 25th percentile, median, 75th, and max of a numeric column?"
 				]
 			},
@@ -281,6 +268,156 @@
 					"print(\"Max: \", quantiles[4])"
 				],
 				"execution_count": 15
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### 7. How to get frequency counts of unique items of a column?"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#######################################################################\r\n",
+					"\r\n",
+					"from pyspark.sql import Row\r\n",
+					"\r\n",
+					"# Sample data\r\n",
+					"data = [\r\n",
+					"Row(name='John', job='Engineer'),\r\n",
+					"Row(name='John', job='Engineer'),\r\n",
+					"Row(name='Mary', job='Scientist'),\r\n",
+					"Row(name='Bob', job='Engineer'),\r\n",
+					"Row(name='Bob', job='Engineer'),\r\n",
+					"Row(name='Bob', job='Scientist'),\r\n",
+					"Row(name='Sam', job='Doctor'),\r\n",
+					"]\r\n",
+					"\r\n",
+					"# create DataFrame\r\n",
+					"df = spark.createDataFrame(data)\r\n",
+					"\r\n",
+					"# show DataFrame\r\n",
+					"df.show()\r\n",
+					"\r\n",
+					"#######################################################################\r\n",
+					"from pyspark.sql import functions as F\r\n",
+					"df.groupBy(df.job).agg(F.count(df.name).alias('yo')).show()"
+				],
+				"execution_count": 22
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### 9. How to Drop rows with NA values specific to a particular column?"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"#####################################################\r\n",
+					"\r\n",
+					"# Assuming df is your DataFrame\r\n",
+					"df = spark.createDataFrame([\r\n",
+					"(\"A\", 1, None),\r\n",
+					"(\"B\", None, \"123\" ),\r\n",
+					"(\"B\", 3, \"456\"),\r\n",
+					"(\"D\", None, None),\r\n",
+					"], [\"Name\", \"Value\", \"id\"])\r\n",
+					"\r\n",
+					"df.show()\r\n",
+					"\r\n",
+					"#####################################################\r\n",
+					"\r\n",
+					"df_2 = df.dropna(subset=['value'])\r\n",
+					"df_2.show()"
+				],
+				"execution_count": 25
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### 10. How to rename columns of a PySpark DataFrame using two lists – one containing the old column names and the other containing the new column names?"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"####################################################\r\n",
+					"\r\n",
+					"# suppose you have the following DataFrame\r\n",
+					"df = spark.createDataFrame([(1, 2, 3), (4, 5, 6)], [\"col1\", \"col2\", \"col3\"])\r\n",
+					"\r\n",
+					"# old column names\r\n",
+					"old_names = [\"col1\", \"col2\", \"col3\"]\r\n",
+					"\r\n",
+					"# new column names\r\n",
+					"new_names = [\"new_col1\", \"new_col2\", \"new_col3\"]\r\n",
+					"\r\n",
+					"df.show()\r\n",
+					"\r\n",
+					"####################################################\r\n",
+					"\r\n",
+					"for old_name, new_name in zip(old_names,new_names):\r\n",
+					"    df = df.withColumnRenamed(old_name,new_name)\r\n",
+					"\r\n",
+					"df.show()"
+				],
+				"execution_count": 27
 			},
 			{
 				"cell_type": "code",
