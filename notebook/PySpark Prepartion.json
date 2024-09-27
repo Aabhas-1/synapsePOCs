@@ -1,0 +1,305 @@
+{
+	"name": "PySpark Prepartion",
+	"properties": {
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "sparkpool1",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "dac70e80-af67-47ec-876b-4b396a444701"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/22fcd409-b8a1-4dae-b3d9-88eba57831b8/resourceGroups/di_msft_offshore_sandbox/providers/Microsoft.Synapse/workspaces/dev--synapseworkspace/bigDataPools/sparkpool1",
+				"name": "sparkpool1",
+				"type": "Spark",
+				"endpoint": "https://dev--synapseworkspace.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparkpool1",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 11,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## PySpark Exercises – 101 PySpark Exercises for Data Analysis"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### 1. How to import PySpark and check the version?"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Creating a SparkSession: A SparkSession is the entry point for using the PySpark DataFrame and SQL API.\r\n",
+					"# To create a SparkSession, use the following code\r\n",
+					"from pyspark.sql import SparkSession\r\n",
+					"spark = SparkSession.builder.appName(\"PySpark 101 Exercises\").getOrCreate()\r\n",
+					"\r\n",
+					"# Get version details\r\n",
+					"print(spark.version)"
+				],
+				"execution_count": 2
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### 2. How to convert the index of a PySpark DataFrame into a column?"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"###########################################################################\r\n",
+					"\r\n",
+					"df = spark.createDataFrame([\r\n",
+					"(\"Alice\", 1),\r\n",
+					"(\"Bob\", 2),\r\n",
+					"(\"Charlie\", 3),\r\n",
+					"], [\"Name\", \"Value\"])\r\n",
+					"\r\n",
+					"display(df)\r\n",
+					"\r\n",
+					"#############################################################################\r\n",
+					"from pyspark.sql.window import Window\r\n",
+					"from pyspark.sql.functions import row_number, monotonically_increasing_id\r\n",
+					"\r\n",
+					"# Define window specification\r\n",
+					"w = Window.orderBy(monotonically_increasing_id())\r\n",
+					"\r\n",
+					"# Add index\r\n",
+					"df = df.withColumn(\"index\", row_number().over(w) - 1)\r\n",
+					"\r\n",
+					"display(df)"
+				],
+				"execution_count": 5
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### 3. How to combine many lists to form a PySpark DataFrame?"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"############################################################################\r\n",
+					"\r\n",
+					"# Define your lists\r\n",
+					"list1 = [\"a\", \"b\", \"c\", \"d\"]\r\n",
+					"list2 = [1, 2, 3, 4]\r\n",
+					"\r\n",
+					"############################################################################\r\n",
+					"\r\n",
+					"rdd = spark.sparkContext.parallelize(list(zip(list1,list2)))\r\n",
+					"df = rdd.toDF([\"Column1\",\"Column2\"])\r\n",
+					"df.show()"
+				],
+				"execution_count": 9
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### 4. How to get the items of list A not present in list B?"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"########################################################################\r\n",
+					"\r\n",
+					"list_A = [1, 2, 3, 4, 5]\r\n",
+					"list_B = [4, 5, 6, 7, 8]\r\n",
+					"\r\n",
+					"########################################################################\r\n",
+					"\r\n",
+					"rdd1 = spark.sparkContext.parallelize(list_A)\r\n",
+					"rdd2 = spark.sparkContext.parallelize(list_B)\r\n",
+					"\r\n",
+					"result_rdd = rdd1.subtract(rdd2)\r\n",
+					"result = result_rdd.collect()\r\n",
+					"print(result)"
+				],
+				"execution_count": 12
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					""
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### 6. How to get the minimum, 25th percentile, median, 75th, and max of a numeric column?"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#########################################################################\r\n",
+					"\r\n",
+					"data = [(\"A\", 10), (\"B\", 20), (\"C\", 30), (\"D\", 40), (\"E\", 50), (\"F\", 15), (\"G\", 28), (\"H\", 54), (\"I\", 41), (\"J\", 86)]\r\n",
+					"df = spark.createDataFrame(data, [\"Name\", \"Age\"])\r\n",
+					"\r\n",
+					"df.show()\r\n",
+					"\r\n",
+					"#########################################################################\r\n",
+					"\r\n",
+					"\r\n",
+					"quantiles = df.approxQuantile(\"Age\",[0.0,0.25,0.5,0.75,1.0],0.01)\r\n",
+					"print(\"Min: \", quantiles[0])\r\n",
+					"print(\"25th percentile: \", quantiles[1])\r\n",
+					"print(\"Median: \", quantiles[2])\r\n",
+					"print(\"75th percentile: \", quantiles[3])\r\n",
+					"print(\"Max: \", quantiles[4])"
+				],
+				"execution_count": 15
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					""
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
