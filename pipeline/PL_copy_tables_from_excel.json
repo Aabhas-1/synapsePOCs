@@ -1,0 +1,49 @@
+{
+	"name": "PL_copy_tables_from_excel",
+	"properties": {
+		"activities": [
+			{
+				"name": "Lookup for sheet names",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderStoredProcedureName": "[dbo].[GetSheetName]",
+						"storedProcedureParameters": {
+							"FileName": {
+								"type": "String",
+								"value": {
+									"value": "@pipeline().parameters.FileName",
+									"type": "Expression"
+								}
+							}
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "DS_SQL",
+						"type": "DatasetReference"
+					},
+					"firstRowOnly": false
+				}
+			}
+		],
+		"parameters": {
+			"FileName": {
+				"type": "string",
+				"defaultValue": "xx"
+			}
+		},
+		"annotations": []
+	}
+}
