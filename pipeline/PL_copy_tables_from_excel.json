@@ -113,7 +113,7 @@
 												"type": "DatasetReference",
 												"parameters": {
 													"SheetName": {
-														"value": "item().SheetName",
+														"value": "@item().SheetName",
 														"type": "Expression"
 													},
 													"FileName": {
@@ -179,7 +179,7 @@
 												"type": "DatasetReference",
 												"parameters": {
 													"SheetName": {
-														"value": "item().SheetName",
+														"value": "@item().SheetName",
 														"type": "Expression"
 													},
 													"FileName": {
