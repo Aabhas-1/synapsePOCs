@@ -1,0 +1,23 @@
+{
+	"name": "DS_Excel_2",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "dev--synapseworkspace-WorkspaceDefaultStorage",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"SheetName": {
+				"type": "string"
+			}
+		},
+		"annotations": [],
+		"type": "Excel",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation"
+			},
+			"firstRowAsHeader": true
+		},
+		"schema": []
+	}
+}
