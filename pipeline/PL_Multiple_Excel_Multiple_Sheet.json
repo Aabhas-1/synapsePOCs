@@ -42,7 +42,7 @@
 				"userProperties": [],
 				"typeProperties": {
 					"items": {
-						"value": "@activity('Get All File Names').output.value",
+						"value": "@activity('Get All File Names').output.childItems",
 						"type": "Expression"
 					},
 					"isSequential": false,
