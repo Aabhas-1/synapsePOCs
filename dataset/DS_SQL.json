@@ -1,0 +1,21 @@
+{
+	"name": "DS_SQL",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "LSA_ASQL",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"FileName": {
+				"type": "string"
+			}
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": [],
+		"typeProperties": {
+			"schema": "",
+			"table": ""
+		}
+	}
+}
