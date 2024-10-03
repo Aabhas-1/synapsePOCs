@@ -1,0 +1,376 @@
+{
+	"name": "Testing",
+	"properties": {
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "sparkpool1",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "bda28810-b228-4435-9a2f-bc29ea6bc843"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/22fcd409-b8a1-4dae-b3d9-88eba57831b8/resourceGroups/di_msft_offshore_sandbox/providers/Microsoft.Synapse/workspaces/dev--synapseworkspace/bigDataPools/sparkpool1",
+				"name": "sparkpool1",
+				"type": "Spark",
+				"endpoint": "https://dev--synapseworkspace.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparkpool1",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 11,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"x = [10,15,20,25,30,35]\r\n",
+					"rdd = sc.parallelize(x)\r\n",
+					""
+				],
+				"execution_count": 1
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"seqOp = (lambda x,y: (x[0]+y,x[1]+5))\r\n",
+					"combOp = (lambda x,y:(x[0]+y[0],x[1]+y[1]))\r\n",
+					"agg = rdd.aggregate((0,0),seqOp,combOp)"
+				],
+				"execution_count": 2
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"print(agg)"
+				],
+				"execution_count": 4
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Step 1: Create an RDD\r\n",
+					"data = [1, 2, 3, 4, 5]\r\n",
+					"rdd = sc.parallelize(data)\r\n",
+					"\r\n",
+					"# Step 2: Define the UDF (User Defined Function)\r\n",
+					"# Let's define a simple UDF that squares each number\r\n",
+					"def square(x):\r\n",
+					"    return x * x\r\n",
+					"\r\n",
+					"# Step 3: Apply the UDF using the map() function\r\n",
+					"squared_rdd = rdd.map(square)\r\n",
+					"\r\n",
+					"# Step 4: Collect the result to see the output\r\n",
+					"result = squared_rdd.collect()\r\n",
+					"print(result)\r\n",
+					""
+				],
+				"execution_count": 5
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Azure Data Lake Storage Gen2 URI\r\n",
+					"adls_uri = \"abfss://raw@devsynapsedefaultadls.dfs.core.windows.net/TestFiles/Input/matches.csv\"\r\n",
+					"\r\n",
+					"# Load the text file from ADLS into an RDD\r\n",
+					"file_rdd = spark.sparkContext.textFile(adls_uri)\r\n",
+					"\r\n",
+					"# Print the first few lines of the RDD to verify\r\n",
+					"file_rdd.take(5)"
+				],
+				"execution_count": 1
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"for item in file_rdd.collect():\r\n",
+					"    print(item)"
+				],
+				"execution_count": 2
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"print(file_rdd.first())"
+				],
+				"execution_count": 3
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"states = file_rdd.map(lambda line: line.split(\",\")[2])\r\n",
+					"print(states.collect())"
+				],
+				"execution_count": 5
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Scount = states.map(lambda val : (val,1))\r\n",
+					"print(Scount.collect())"
+				],
+				"execution_count": 6
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"temp = Scount.reduceByKey(lambda x, y: x + y)\r\n",
+					"temp2 = temp.map(lambda x: (x[1],x[0]))\r\n",
+					"temp3 = temp2.sortByKey(ascending=False)\r\n",
+					"print(temp3.collect())"
+				],
+				"execution_count": 13
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"rdd = spark.sparkContext.parallelize([\"hello world\", \"spark flatmap\"])\r\n",
+					"\r\n",
+					"# flatMap will split each string into words\r\n",
+					"flatmapped_rdd = rdd.flatMap(lambda x: x.split(\" \"))\r\n",
+					"map_rdd = rdd.map(lambda x: x.split(\" \"))\r\n",
+					"\r\n",
+					"print(map_rdd.collect())\r\n",
+					"print(flatmapped_rdd.collect())\r\n",
+					""
+				],
+				"execution_count": 16
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# finding the player with maximum Player of match awards\r\n",
+					"adls_uri = \"abfss://raw@devsynapsedefaultadls.dfs.core.windows.net/TestFiles/Input/matches.csv\"\r\n",
+					"file_rdd = spark.sparkContext.textFile(adls_uri)\r\n",
+					"man_of_match_rdd = file_rdd.map(lambda row: row.split(\",\")[5])\r\n",
+					"man_of_match_rdd_temp = man_of_match_rdd.map(lambda x: (x,1))\r\n",
+					"man_of_match_rdd_temp2 = man_of_match_rdd_temp.reduceByKey(lambda x,y: x+y)\r\n",
+					"man_of_match_rdd_temp3 = man_of_match_rdd_temp2.map(lambda x: (x[1],x[0]))\r\n",
+					"man_of_match_rdd_temp4 = man_of_match_rdd_temp3.sortByKey(ascending=False)\r\n",
+					"ans = man_of_match_rdd_temp4.take(1)\r\n",
+					"print(ans)"
+				],
+				"execution_count": 20
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Load Pokemon Data\r\n",
+					"adls_uri = \"abfss://raw@devsynapsedefaultadls.dfs.core.windows.net/TestFiles/Input/pokemonData.csv\"\r\n",
+					"file_rdd = spark.sparkContext.textFile(adls_uri)\r\n",
+					"\r\n",
+					"#Remove Schema\r\n",
+					"rdd_with_index = file_rdd.zipWithIndex()\r\n",
+					"filtered_rdd = rdd_with_index.filter(lambda x: x[1] != 0)\r\n",
+					"result_rdd = filtered_rdd.map(lambda x: x[0])\r\n",
+					"\r\n",
+					"#Find Num Partitions\r\n",
+					"result_rdd.getNumPartitions()\r\n",
+					"\r\n",
+					"#Find Number of Fire and Water Pokemons\r\n",
+					"temp = result_rdd.map(lambda x: x.split(\",\"))\r\n",
+					"rdd_water = temp.filter(lambda x: x[6]==\"water\")\r\n",
+					"print(\"water_pokemons \",rdd_water.count())\r\n",
+					"rdd_fire = temp.filter(lambda x: x[6]==\"fire\")\r\n",
+					"print(\"fire_pokemons \",rdd_fire.count())\r\n",
+					"\r\n",
+					"#Find the maximum defence strength\r\n",
+					"temp = result_rdd.map(lambda x: x.split(\",\")[4])\r\n",
+					"temp = temp.map(lambda x: int(x))\r\n",
+					"temp2 = temp.reduce(lambda a,b: a if a > b else b)\r\n",
+					"temp3 = temp.max()\r\n",
+					"print(\"Maximum Defence Strength \",temp2,\" \",temp3)\r\n",
+					"\r\n",
+					"#Find Pokemons with minimum defence strength\r\n",
+					"minimum = temp3\r\n",
+					"rdd = result_rdd.map(lambda x: x.split(\",\"))\r\n",
+					"rdd2 = rdd.map(lambda x: (x[0],int(x[4])))\r\n",
+					"rdd3 = rdd2.map(lambda x:(x[1],x[0]))\r\n",
+					"rdd4 = rdd3.filter(lambda x: x[0]==minimum)\r\n",
+					"rdd5 = rdd4.groupByKey()\r\n",
+					"print([ (key,list(values)) for key,values in rdd5.collect()])"
+				],
+				"execution_count": 90
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					""
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
