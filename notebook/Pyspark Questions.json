@@ -1,0 +1,411 @@
+{
+	"name": "Pyspark Questions",
+	"properties": {
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "sparkpool1",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "9afba328-3d35-411c-abd4-fe43d93e48f9"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/22fcd409-b8a1-4dae-b3d9-88eba57831b8/resourceGroups/di_msft_offshore_sandbox/providers/Microsoft.Synapse/workspaces/dev--synapseworkspace/bigDataPools/sparkpool1",
+				"name": "sparkpool1",
+				"type": "Spark",
+				"endpoint": "https://dev--synapseworkspace.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparkpool1",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 11,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"from pyspark.sql import SparkSession\r\n",
+					"from pyspark.sql.types import StructType, StructField, IntegerType, StringType\r\n",
+					"from pyspark.sql import Window\r\n",
+					"from pyspark.sql.functions import sum\r\n",
+					"\r\n",
+					"\r\n",
+					"\r\n",
+					"# Data as a list of tuples\r\n",
+					"data = [\r\n",
+					"    (5, \"Alice\", 250, 1),\r\n",
+					"    (4, \"Bob\", 175, 5),\r\n",
+					"    (3, \"Alex\", 350, 2),\r\n",
+					"    (6, \"John Cena\", 400, 3),\r\n",
+					"    (1, \"Winston\", 500, 6),\r\n",
+					"    (2, \"Marie\", 200, 4)\r\n",
+					"]\r\n",
+					"\r\n",
+					"# Define the schema\r\n",
+					"schema = StructType([\r\n",
+					"    StructField(\"person_id\", IntegerType(), True),\r\n",
+					"    StructField(\"person_name\", StringType(), True),\r\n",
+					"    StructField(\"weight\", IntegerType(), True),\r\n",
+					"    StructField(\"turn\", IntegerType(), True)\r\n",
+					"])\r\n",
+					"\r\n",
+					"# Create DataFrame                                                                                                                                                                                                                                                                                             \r\n",
+					"df = spark.createDataFrame(data, schema)\r\n",
+					"window = Window.orderBy(df.turn)\r\n",
+					"func = sum(df.weight).over(window)\r\n",
+					"df = df.withColumn(\"val\",func)\r\n",
+					"df = df.orderBy(df.val.desc()).where(df.val <= 1000).limit(1).select(df.person_name)\r\n",
+					"display(df)"
+				],
+				"execution_count": 109
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"\r\n",
+					"\r\n",
+					"from pyspark.sql.functions import *\r\n",
+					"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        # Data as a list of tuples\r\n",
+					"data = [\r\n",
+					"    (3, 108939),\r\n",
+					"    (2, 12747),\r\n",
+					"    (8, 87709),\r\n",
+					"    (6, 91796)\r\n",
+					"]\r\n",
+					"\r\n",
+					"# Define the schema\r\n",
+					"schema = StructType([\r\n",
+					"    StructField(\"account_id\", IntegerType(), True),\r\n",
+					"    StructField(\"income\", IntegerType(), True)\r\n",
+					"])\r\n",
+					"\r\n",
+					"# Create DataFrame\r\n",
+					"df1 = spark.createDataFrame(data, schema)\r\n",
+					"\r\n",
+					"data = [(\"High Salary\",),(\"Average Salary\",),(\"Low Salary\",)]\r\n",
+					"schema = StructType([StructField(\"category\",StringType(),True)])\r\n",
+					"df2 = spark.createDataFrame(data,schema)\r\n",
+					"\r\n",
+					"df1 = df1.withColumn(\"category\",when(col(\"income\") < 20000,\"Low Salary\").when((col(\"income\") >= 20000) & (col(\"income\") <= 50000),\"Average Salary\").when(col(\"income\")>50000,\"High Salary\"))\r\n",
+					"df1 = df1.groupBy(col(\"category\")).agg(count(col(\"account_id\")).alias(\"val\"))\r\n",
+					"display(df1)\r\n",
+					"\r\n",
+					"df_joined = df1.alias(\"xx\").join(df2.alias(\"yy\"),on=col(\"xx.category\")==col(\"yy.category\"),how=\"right_outer\").select(col(\"yy.category\"),col(\"xx.val\"))\r\n",
+					"display(df_joined.fillna({\"val\":0}))\r\n",
+					""
+				],
+				"execution_count": 143
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"# Data for the Employees table\r\n",
+					"data = [\r\n",
+					"    (3, \"Mila\", 9, 60301),\r\n",
+					"    (12, \"Antonella\", None, 31000),\r\n",
+					"    (13, \"Emery\", None, 67084),\r\n",
+					"    (1, \"Kalel\", 11, 21241),\r\n",
+					"    (9, \"Mikaela\", None, 50937),\r\n",
+					"    (11, \"Joziah\", 6, 28485)\r\n",
+					"]\r\n",
+					"\r\n",
+					"# Define the schema\r\n",
+					"schema = StructType([\r\n",
+					"    StructField(\"employee_id\", IntegerType(), True),\r\n",
+					"    StructField(\"name\", StringType(), True),\r\n",
+					"    StructField(\"manager_id\", IntegerType(), True),\r\n",
+					"    StructField(\"salary\", IntegerType(), True)\r\n",
+					"])\r\n",
+					"\r\n",
+					"# Create DataFrame\r\n",
+					"df = spark.createDataFrame(data, schema)\r\n",
+					"distinct_employee_id = df.select(\"employee_id\").distinct()\r\n",
+					"list_distinct_employee_id = [row.employee_id for row in distinct_employee_id.collect()]\r\n",
+					"df_filtered = df.filter(~(col(\"manager_id\").isin(list_distinct_employee_id)) & (col(\"salary\") < 30000 ))\r\n",
+					"display(df_filtered.select(col(\"employee_id\")))"
+				],
+				"execution_count": 157
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"# Data for the Employees table\r\n",
+					"data = [\r\n",
+					"    (3, \"Mila\", 9, 60301),\r\n",
+					"    (12, \"Antonella\", None, 31000),\r\n",
+					"    (13, \"Emery\", None, 67084),\r\n",
+					"    (1, \"Kalel\", 11, 21241),\r\n",
+					"    (9, \"Mikaela\", None, 50937),\r\n",
+					"    (11, \"Joziah\", 6, 28485)\r\n",
+					"]\r\n",
+					"\r\n",
+					"# Define the schema\r\n",
+					"schema = StructType([\r\n",
+					"    StructField(\"employee_id\", IntegerType(), True),\r\n",
+					"    StructField(\"name\", StringType(), True),\r\n",
+					"    StructField(\"manager_id\", IntegerType(), True),\r\n",
+					"    StructField(\"salary\", IntegerType(), True)\r\n",
+					"])\r\n",
+					"\r\n",
+					"# Create DataFrame\r\n",
+					"df = spark.createDataFrame(data, schema)\r\n",
+					"window = Window.orderBy(monotonically_increasing_id())\r\n",
+					"func = row_number().over(window)\r\n",
+					"df = df.withColumn(\"rn\",func)\r\n",
+					"display(df)"
+				],
+				"execution_count": 163
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"from pyspark.sql.functions import *\r\n",
+					"from pyspark.sql import *\r\n",
+					"\r\n",
+					"# Data as a list of tuples\r\n",
+					"data = [\r\n",
+					"    (1, \"Abbot\"),\r\n",
+					"    (2, \"Doris\"),\r\n",
+					"    (3, \"Emerson\"),\r\n",
+					"    (4, \"Green\"),\r\n",
+					"    (5, \"Jeames\")\r\n",
+					"]\r\n",
+					"\r\n",
+					"# Define the schema\r\n",
+					"schema = StructType([\r\n",
+					"    StructField(\"id\", IntegerType(), True),\r\n",
+					"    StructField(\"student\", StringType(), True)\r\n",
+					"])\r\n",
+					"\r\n",
+					"# Create DataFrame\r\n",
+					"df = spark.createDataFrame(data, schema)\r\n",
+					"\r\n",
+					"df = (\r\n",
+					"    df.withColumn(\"val2\",expr(\"lag(student) over (order by id)\"))\r\n",
+					"        .withColumn(\"val1\",expr(\"lead(student) over (order by id)\"))\r\n",
+					"        .withColumn(\"max_id\",expr(\"max(id) over ()\"))\r\n",
+					"    )\r\n",
+					"\r\n",
+					"df2 = (\r\n",
+					"        df.withColumn(\"student_new\",expr(\r\n",
+					"            \"\"\"\r\n",
+					"            case\r\n",
+					"            when id<>max_id and id%2 = 0 then val2\r\n",
+					"            when id<>max_id and id%2 <> 0 then val1\r\n",
+					"            when id=max_id and max_id%2=0 then val2\r\n",
+					"            when max_id % 2 <> 0 then student\r\n",
+					"            end\r\n",
+					"            \r\n",
+					"            \"\"\"\r\n",
+					"        \r\n",
+					"        )).select(expr(\"id\"),expr(\"student_new\"))\r\n",
+					"\r\n",
+					"\r\n",
+					"    )\r\n",
+					"display(df2.withColumn(\"xx\",expr(\"dense_rank() over (order by id)\")))"
+				],
+				"execution_count": 176
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"from pyspark.sql.types import DateType\r\n",
+					"# Movies data\r\n",
+					"movies_data = [\r\n",
+					"    (1, \"Avengers\"),\r\n",
+					"    (2, \"Frozen 2\"),\r\n",
+					"    (3, \"Joker\")\r\n",
+					"]\r\n",
+					"\r\n",
+					"# Movies schema\r\n",
+					"movies_schema = StructType([\r\n",
+					"    StructField(\"movie_id\", IntegerType(), True),\r\n",
+					"    StructField(\"title\", StringType(), True)\r\n",
+					"])\r\n",
+					"\r\n",
+					"# Create Movies DataFrame\r\n",
+					"movies_df = spark.createDataFrame(movies_data, movies_schema)\r\n",
+					"\r\n",
+					"# Show Movies DataFrame\r\n",
+					"# movies_df.show()\r\n",
+					"\r\n",
+					"# Users data\r\n",
+					"users_data = [\r\n",
+					"    (1, \"Daniel\"),\r\n",
+					"    (2, \"Monica\"),\r\n",
+					"    (3, \"Maria\"),\r\n",
+					"    (4, \"James\")\r\n",
+					"]\r\n",
+					"\r\n",
+					"# Users schema\r\n",
+					"users_schema = StructType([\r\n",
+					"    StructField(\"user_id\", IntegerType(), True),\r\n",
+					"    StructField(\"name\", StringType(), True)\r\n",
+					"])\r\n",
+					"\r\n",
+					"# Create Users DataFrame\r\n",
+					"users_df = spark.createDataFrame(users_data, users_schema)\r\n",
+					"\r\n",
+					"# Show Users DataFrame\r\n",
+					"# users_df.show()\r\n",
+					"\r\n",
+					"\r\n",
+					"\r\n",
+					"# MovieRating data\r\n",
+					"ratings_data = [\r\n",
+					"    (1, 1, 3, \"2020-01-12\"),\r\n",
+					"    (1, 2, 4, \"2020-02-11\"),\r\n",
+					"    (1, 3, 2, \"2020-02-12\"),\r\n",
+					"    (1, 4, 1, \"2020-01-01\"),\r\n",
+					"    (2, 1, 5, \"2020-02-17\"),\r\n",
+					"    (2, 2, 2, \"2020-02-01\"),\r\n",
+					"    (2, 3, 2, \"2020-03-01\"),\r\n",
+					"    (3, 1, 3, \"2020-02-22\"),\r\n",
+					"    (3, 2, 4, \"2020-02-25\")\r\n",
+					"]\r\n",
+					"\r\n",
+					"# MovieRating schema\r\n",
+					"ratings_schema = StructType([\r\n",
+					"    StructField(\"movie_id\", IntegerType(), True),\r\n",
+					"    StructField(\"user_id\", IntegerType(), True),\r\n",
+					"    StructField(\"rating\", IntegerType(), True),\r\n",
+					"    StructField(\"created_at\", StringType(), True)  # Alternatively, use DateType if you're parsing dates\r\n",
+					"])\r\n",
+					"\r\n",
+					"# Create MovieRating DataFrame\r\n",
+					"ratings_df = spark.createDataFrame(ratings_data, ratings_schema)\r\n",
+					"\r\n",
+					"# Show MovieRating DataFrame\r\n",
+					"# ratings_df.show()\r\n",
+					"\r\n",
+					"\r\n",
+					"###################################################################\r\n",
+					"\r\n",
+					"df_joined1 = ratings_df.join(users_df,on=ratings_df.user_id==users_df.user_id,how=\"inner\")\r\n",
+					"df_joined1 = df_joined1.groupBy(\"name\").agg(count(\"movie_id\").alias(\"cnt\"))\r\n",
+					"df_joined1 = df_joined1.orderBy(col(\"cnt\").desc(),col(\"name\")).limit(1)\r\n",
+					"df_joined1 = df_joined1.select(\"name\").withColumnRenamed(\"name\",\"results\")\r\n",
+					"\r\n",
+					"\r\n",
+					"df_joined2 = ratings_df.join(movies_df,on=ratings_df.movie_id==movies_df.movie_id,how=\"inner\")\r\n",
+					"df_joined2 = df_joined2.where(substring(col(\"created_at\"),1,7)==\"2020-02\")\r\n",
+					"df_joined2 = df_joined2.groupBy(\"title\").agg(avg(\"rating\").alias(\"val\"))\r\n",
+					"df_joined2 = df_joined2.orderBy(col(\"val\").desc(),col(\"title\")).limit(1)\r\n",
+					"df_joined2 = df_joined2.select(\"title\").withColumnRenamed(\"title\",\"results\")\r\n",
+					"\r\n",
+					"\r\n",
+					"display(df_joined1.union(df_joined2))"
+				],
+				"execution_count": 197
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					""
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
