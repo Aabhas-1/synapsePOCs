@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ed1f8efd-4f55-4bbd-b84c-66e269cff019"
+				"spark.autotune.trackingId": "47cafeec-f75d-4961-89b2-b73da9c6067b"
 			}
 		},
 		"metadata": {
@@ -416,6 +416,19 @@
 				"execution_count": 18
 			},
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### 11. How to keep only top 2 most frequent values as it is and replace everything else as ‘Other’?"
+				]
+			},
+			{
 				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
@@ -429,7 +442,76 @@
 					}
 				},
 				"source": [
+					"####################################################\r\n",
+					"from pyspark.sql import Row,Window\r\n",
+					"from pyspark.sql.functions import expr,lit,rank,dense_rank,col,count\r\n",
+					"\r\n",
+					"# Sample data\r\n",
+					"data = [\r\n",
+					"Row(name='John', job='Engineer'),\r\n",
+					"Row(name='John', job='Engineer'),\r\n",
+					"Row(name='Mary', job='Scientist'),\r\n",
+					"Row(name='Bob', job='Engineer'),\r\n",
+					"Row(name='Bob', job='Engineer'),\r\n",
+					"Row(name='Bob', job='Scientist'),\r\n",
+					"Row(name='Sam', job='Doctor'),\r\n",
+					"]\r\n",
+					"\r\n",
+					"# create DataFrame\r\n",
+					"df = spark.createDataFrame(data)\r\n",
+					"\r\n",
+					"# show DataFrame\r\n",
+					"df.show()\r\n",
+					"\r\n",
+					"# output:\r\n",
+					"# +----+---------+\r\n",
+					"# |name| job|\r\n",
+					"# +----+---------+\r\n",
+					"# |John| Engineer|\r\n",
+					"# |John| Engineer|\r\n",
+					"# |Mary|Scientist|\r\n",
+					"# | Bob| Engineer|\r\n",
+					"# | Bob| Engineer|\r\n",
+					"# | Bob|Scientist|\r\n",
+					"# | Sam| Other|\r\n",
+					"# +----+---------+\r\n",
+					"\r\n",
+					"####################################################\r\n",
+					"window = Window.partitionBy(\"job\")\r\n",
+					"df = df.withColumn(\"val\", count(lit(1)).over(window))\r\n",
+					"window = Window.orderBy(col(\"val\").desc())\r\n",
+					"df = df.withColumn(\"rank\",dense_rank().over(window))\r\n",
+					"df = df.select(\"name\",expr(\"case when rank>2 then 'other' else job end\").alias(\"job\"))\r\n",
+					"df.show()\r\n",
 					""
+				],
+				"execution_count": 47
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"+----+---------+\r\n",
+					"|name| job|\r\n",
+					"+----+---------+\r\n",
+					"|John| Engineer|\r\n",
+					"|John| Engineer|\r\n",
+					"|Mary|Scientist|\r\n",
+					"| Bob| Engineer|\r\n",
+					"| Bob| Engineer|\r\n",
+					"| Bob|Scientist|\r\n",
+					"| Sam| Other|\r\n",
+					"+----+---------+"
 				],
 				"execution_count": null
 			}
