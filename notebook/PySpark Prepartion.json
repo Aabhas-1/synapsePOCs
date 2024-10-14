@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "daf2557e-44a9-4dbe-ad61-aa723fe9c499"
+				"spark.autotune.trackingId": "f6a20689-c0f4-488c-b39c-a6448ee425f3"
 			}
 		},
 		"metadata": {
@@ -542,6 +542,99 @@
 					"df_buck.show(5)"
 				],
 				"execution_count": 50
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### 13. How to find the numbers that are multiples of 3 from a column?"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"############################################################\r\n",
+					"from pyspark.sql.functions import rand,col\r\n",
+					"\r\n",
+					"# Generate a DataFrame with a single column \"id\" with 10 rows\r\n",
+					"df = spark.range(10)\r\n",
+					"\r\n",
+					"# Generate a random float between 0 and 1, scale and shift it to get a random integer between 1 and 10\r\n",
+					"df = df.withColumn(\"random\", ((rand(seed=42) * 10) + 1).cast(\"int\"))\r\n",
+					"\r\n",
+					"# Show the DataFrame\r\n",
+					"df.show()\r\n",
+					"############################################################\r\n",
+					"\r\n",
+					"df = df.filter(col(\"random\")%3 == 0)\r\n",
+					"df.show()\r\n",
+					""
+				],
+				"execution_count": 55
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### 14. How to extract items at given positions from a column?"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"############################################################\r\n",
+					"from pyspark.sql.functions import rand\r\n",
+					"\r\n",
+					"# Generate a DataFrame with a single column \"id\" with 10 rows\r\n",
+					"df = spark.range(10)\r\n",
+					"\r\n",
+					"# Generate a random float between 0 and 1, scale and shift it to get a random integer between 1 and 10\r\n",
+					"df = df.withColumn(\"random\", ((rand(seed=42) * 10) + 1).cast(\"int\"))\r\n",
+					"\r\n",
+					"# Show the DataFrame\r\n",
+					"df.show()\r\n",
+					"\r\n",
+					"pos = [0, 4, 8, 5]\r\n",
+					"############################################################\r\n",
+					"\r\n",
+					"df = df.where( df.id.isin(pos))\r\n",
+					"df.show()"
+				],
+				"execution_count": 58
 			},
 			{
 				"cell_type": "code",
