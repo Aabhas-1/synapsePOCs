@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "47cafeec-f75d-4961-89b2-b73da9c6067b"
+				"spark.autotune.trackingId": "daf2557e-44a9-4dbe-ad61-aa723fe9c499"
 			}
 		},
 		"metadata": {
@@ -488,6 +488,19 @@
 				"execution_count": 47
 			},
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### 12. How to bin a numeric list to 10 groups of equal size?"
+				]
+			},
+			{
 				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
@@ -501,17 +514,50 @@
 					}
 				},
 				"source": [
-					"+----+---------+\r\n",
-					"|name| job|\r\n",
-					"+----+---------+\r\n",
-					"|John| Engineer|\r\n",
-					"|John| Engineer|\r\n",
-					"|Mary|Scientist|\r\n",
-					"| Bob| Engineer|\r\n",
-					"| Bob| Engineer|\r\n",
-					"| Bob|Scientist|\r\n",
-					"| Sam| Other|\r\n",
-					"+----+---------+"
+					"################################################################\r\n",
+					"from pyspark.sql.functions import rand\r\n",
+					"from pyspark.ml.feature import Bucketizer\r\n",
+					"\r\n",
+					"# Create a DataFrame with a single column \"values\" filled with random numbers\r\n",
+					"num_items = 100\r\n",
+					"df = spark.range(num_items).select(rand(seed=42).alias(\"values\"))\r\n",
+					"\r\n",
+					"df.show()\r\n",
+					"\r\n",
+					"################################################################\r\n",
+					"\r\n",
+					"num_buckets = 10\r\n",
+					"quantiles = df.stat.approxQuantile(\"values\", [i/num_buckets for i in range(num_buckets+1)], 0.01)\r\n",
+					"\r\n",
+					"# Create the Bucketizer\r\n",
+					"bucketizer = Bucketizer(splits=quantiles, inputCol=\"values\", outputCol=\"buckets\")\r\n",
+					"\r\n",
+					"# Apply the Bucketizer\r\n",
+					"df_buck = bucketizer.transform(df)\r\n",
+					"\r\n",
+					"#Frequency table\r\n",
+					"df_buck.groupBy(\"buckets\").count().show()\r\n",
+					"\r\n",
+					"# Show the original and bucketed values\r\n",
+					"df_buck.show(5)"
+				],
+				"execution_count": 50
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					""
 				],
 				"execution_count": null
 			}
