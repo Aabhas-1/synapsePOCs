@@ -1,0 +1,121 @@
+{
+	"name": "Notebook 1",
+	"properties": {
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "sparkpool",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "56g",
+			"driverCores": 8,
+			"executorMemory": "56g",
+			"executorCores": 8,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "f54c5c8c-42a5-43fc-b47f-1310288a22f0"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/22fcd409-b8a1-4dae-b3d9-88eba57831b8/resourceGroups/di_msft_offshore_sandbox/providers/Microsoft.Synapse/workspaces/dev--synapseworkspace/bigDataPools/sparkpool",
+				"name": "sparkpool",
+				"type": "Spark",
+				"endpoint": "https://dev--synapseworkspace.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparkpool",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 10,
+				"cores": 8,
+				"memory": 56,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import SparkSession\r\n",
+					"from pyspark.sql.functions import udf\r\n",
+					"from pyspark.sql.types import StringType\r\n",
+					"\r\n",
+					"# Initialize Spark session\r\n",
+					"spark = SparkSession.builder.appName(\"FlairNER\").getOrCreate()\r\n",
+					"\r\n",
+					"# Sample data\r\n",
+					"data = [(\"My name is Christopher and I live in Irbid.\",)]\r\n",
+					"df = spark.createDataFrame(data, [\"text\"])\r\n",
+					"\r\n",
+					"# Broadcast model configuration (e.g., model name or path)\r\n",
+					"model_name = \"flair/ner-english-large\"\r\n",
+					"broadcast_model_name = spark.sparkContext.broadcast(model_name)\r\n",
+					"\r\n",
+					"# Define a function to load and apply the Flair model\r\n",
+					"def apply_flair_ner(text):\r\n",
+					"    from flair.data import Sentence\r\n",
+					"    from flair.models import SequenceTagger\r\n",
+					"\r\n",
+					"    # Load the model\r\n",
+					"    model_name = broadcast_model_name.value\r\n",
+					"    tagger = SequenceTagger.load(model_name)\r\n",
+					"\r\n",
+					"    # Create a sentence object\r\n",
+					"    sentence = Sentence(text)\r\n",
+					"\r\n",
+					"    # Predict NER tags\r\n",
+					"    tagger.predict(sentence)\r\n",
+					"\r\n",
+					"    # Extract entities\r\n",
+					"    entities = [(entity.text, entity.get_label(\"ner\").value) for entity in sentence.get_spans(\"ner\")]\r\n",
+					"\r\n",
+					"    return str(entities)\r\n",
+					"\r\n",
+					"# Register the function as a UDF\r\n",
+					"ner_udf = udf(apply_flair_ner, StringType())\r\n",
+					"\r\n",
+					"# Apply the UDF to the DataFrame\r\n",
+					"result_df = df.withColumn(\"entities\", ner_udf(df[\"text\"]))\r\n",
+					"\r\n",
+					"# Show the results\r\n",
+					"result_df.show(truncate=False)\r\n",
+					""
+				],
+				"execution_count": 12
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					""
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
