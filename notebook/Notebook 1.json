@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "f54c5c8c-42a5-43fc-b47f-1310288a22f0"
+				"spark.autotune.trackingId": "8eaf7118-1a1c-4408-8440-c8a8584b2e66"
 			}
 		},
 		"metadata": {
@@ -96,7 +96,320 @@
 					"result_df.show(truncate=False)\r\n",
 					""
 				],
-				"execution_count": 12
+				"execution_count": 13
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"import logging\r\n",
+					"from typing import Optional, List, Tuple, Set"
+				],
+				"execution_count": 14
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from presidio_analyzer import (\r\n",
+					"    RecognizerResult,\r\n",
+					"    EntityRecognizer,\r\n",
+					"    AnalysisExplanation,\r\n",
+					")\r\n",
+					"from presidio_analyzer.nlp_engine import NlpArtifacts"
+				],
+				"execution_count": 15
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"try:\r\n",
+					"    from flair.data import Sentence\r\n",
+					"    from flair.models import SequenceTagger\r\n",
+					"except ImportError:\r\n",
+					"    print(\"Flair is not installed\")"
+				],
+				"execution_count": 16
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"logger = logging.getLogger(\"presidio-analyzer\")"
+				],
+				"execution_count": 17
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"class FlairRecognizer(EntityRecognizer):\r\n",
+					"    \"\"\"\r\n",
+					"    Wrapper for a flair model, if needed to be used within Presidio Analyzer.\r\n",
+					"\r\n",
+					"    :example:\r\n",
+					"    >from presidio_analyzer import AnalyzerEngine, RecognizerRegistry\r\n",
+					"\r\n",
+					"    >flair_recognizer = FlairRecognizer()\r\n",
+					"\r\n",
+					"    >registry = RecognizerRegistry()\r\n",
+					"    >registry.add_recognizer(flair_recognizer)\r\n",
+					"\r\n",
+					"    >analyzer = AnalyzerEngine(registry=registry)\r\n",
+					"\r\n",
+					"    >results = analyzer.analyze(\r\n",
+					"    >    \"My name is Christopher and I live in Irbid.\",\r\n",
+					"    >    language=\"en\",\r\n",
+					"    >    return_decision_process=True,\r\n",
+					"    >)\r\n",
+					"    >for result in results:\r\n",
+					"    >    print(result)\r\n",
+					"    >    print(result.analysis_explanation)\r\n",
+					"\r\n",
+					"\r\n",
+					"    \"\"\"\r\n",
+					"\r\n",
+					"    ENTITIES = [\r\n",
+					"        \"LOCATION\",\r\n",
+					"        \"PERSON\",\r\n",
+					"        \"ORGANIZATION\",\r\n",
+					"        # \"MISCELLANEOUS\"   # - There are no direct correlation with Presidio entities.\r\n",
+					"    ]\r\n",
+					"\r\n",
+					"    DEFAULT_EXPLANATION = \"Identified as {} by Flair's Named Entity Recognition\"\r\n",
+					"\r\n",
+					"    CHECK_LABEL_GROUPS = [\r\n",
+					"        ({\"LOCATION\"}, {\"LOC\", \"LOCATION\"}),\r\n",
+					"        ({\"PERSON\"}, {\"PER\", \"PERSON\"}),\r\n",
+					"        ({\"ORGANIZATION\"}, {\"ORG\"}),\r\n",
+					"        # ({\"MISCELLANEOUS\"}, {\"MISC\"}), # Probably not PII\r\n",
+					"    ]\r\n",
+					"\r\n",
+					"    MODEL_LANGUAGES = {\r\n",
+					"        \"en\": \"flair/ner-english-large\",\r\n",
+					"        \"es\": \"flair/ner-spanish-large\",\r\n",
+					"        \"de\": \"flair/ner-german-large\",\r\n",
+					"        \"nl\": \"flair/ner-dutch-large\",\r\n",
+					"    }\r\n",
+					"\r\n",
+					"    PRESIDIO_EQUIVALENCES = {\r\n",
+					"        \"PER\": \"PERSON\",\r\n",
+					"        \"LOC\": \"LOCATION\",\r\n",
+					"        \"ORG\": \"ORGANIZATION\",\r\n",
+					"        # 'MISC': 'MISCELLANEOUS'   # - Probably not PII\r\n",
+					"    }\r\n",
+					"\r\n",
+					"    def __init__(\r\n",
+					"        self,\r\n",
+					"        supported_language: str = \"en\",\r\n",
+					"        supported_entities: Optional[List[str]] = None,\r\n",
+					"        check_label_groups: Optional[Tuple[Set, Set]] = None,\r\n",
+					"        model: SequenceTagger = None,\r\n",
+					"    ):\r\n",
+					"        self.check_label_groups = (\r\n",
+					"            check_label_groups if check_label_groups else self.CHECK_LABEL_GROUPS\r\n",
+					"        )\r\n",
+					"\r\n",
+					"        supported_entities = supported_entities if supported_entities else self.ENTITIES\r\n",
+					"        self.model = (\r\n",
+					"            model\r\n",
+					"            if model\r\n",
+					"            else SequenceTagger.load(self.MODEL_LANGUAGES.get(supported_language))\r\n",
+					"        )\r\n",
+					"\r\n",
+					"        super().__init__(\r\n",
+					"            supported_entities=supported_entities,\r\n",
+					"            supported_language=supported_language,\r\n",
+					"            name=\"Flair Analytics\",\r\n",
+					"        )\r\n",
+					"\r\n",
+					"    def load(self) -> None:\r\n",
+					"        \"\"\"Load the model, not used. Model is loaded during initialization.\"\"\"\r\n",
+					"        pass\r\n",
+					"\r\n",
+					"    def get_supported_entities(self) -> List[str]:\r\n",
+					"        \"\"\"\r\n",
+					"        Return supported entities by this model.\r\n",
+					"\r\n",
+					"        :return: List of the supported entities.\r\n",
+					"        \"\"\"\r\n",
+					"        return self.supported_entities\r\n",
+					"\r\n",
+					"    # Class to use Flair with Presidio as an external recognizer.\r\n",
+					"    def analyze(\r\n",
+					"        self, text: str, entities: List[str], nlp_artifacts: NlpArtifacts = None\r\n",
+					"    ) -> List[RecognizerResult]:\r\n",
+					"        \"\"\"\r\n",
+					"        Analyze text using Text Analytics.\r\n",
+					"\r\n",
+					"        :param text: The text for analysis.\r\n",
+					"        :param entities: Not working properly for this recognizer.\r\n",
+					"        :param nlp_artifacts: Not used by this recognizer.\r\n",
+					"        :param language: Text language. Supported languages in MODEL_LANGUAGES\r\n",
+					"        :return: The list of Presidio RecognizerResult constructed from the recognized\r\n",
+					"            Flair detections.\r\n",
+					"        \"\"\"\r\n",
+					"\r\n",
+					"        results = []\r\n",
+					"\r\n",
+					"        sentences = Sentence(text)\r\n",
+					"        self.model.predict(sentences)\r\n",
+					"\r\n",
+					"        # If there are no specific list of entities, we will look for all of it.\r\n",
+					"        if not entities:\r\n",
+					"            entities = self.supported_entities\r\n",
+					"\r\n",
+					"        for entity in entities:\r\n",
+					"            if entity not in self.supported_entities:\r\n",
+					"                continue\r\n",
+					"\r\n",
+					"            for ent in sentences.get_spans(\"ner\"):\r\n",
+					"                if not self.__check_label(\r\n",
+					"                    entity, ent.labels[0].value, self.check_label_groups\r\n",
+					"                ):\r\n",
+					"                    continue\r\n",
+					"                textual_explanation = self.DEFAULT_EXPLANATION.format(\r\n",
+					"                    ent.labels[0].value\r\n",
+					"                )\r\n",
+					"                explanation = self.build_flair_explanation(\r\n",
+					"                    round(ent.score, 2), textual_explanation\r\n",
+					"                )\r\n",
+					"                flair_result = self._convert_to_recognizer_result(ent, explanation)\r\n",
+					"\r\n",
+					"                results.append(flair_result)\r\n",
+					"\r\n",
+					"        return results\r\n",
+					"\r\n",
+					"    def _convert_to_recognizer_result(self, entity, explanation) -> RecognizerResult:\r\n",
+					"\r\n",
+					"        entity_type = self.PRESIDIO_EQUIVALENCES.get(entity.tag, entity.tag)\r\n",
+					"        flair_score = round(entity.score, 2)\r\n",
+					"\r\n",
+					"        flair_results = RecognizerResult(\r\n",
+					"            entity_type=entity_type,\r\n",
+					"            start=entity.start_position,\r\n",
+					"            end=entity.end_position,\r\n",
+					"            score=flair_score,\r\n",
+					"            analysis_explanation=explanation,\r\n",
+					"        )\r\n",
+					"\r\n",
+					"        return flair_results\r\n",
+					"\r\n",
+					"    def build_flair_explanation(\r\n",
+					"        self, original_score: float, explanation: str\r\n",
+					"    ) -> AnalysisExplanation:\r\n",
+					"        \"\"\"\r\n",
+					"        Create explanation for why this result was detected.\r\n",
+					"\r\n",
+					"        :param original_score: Score given by this recognizer\r\n",
+					"        :param explanation: Explanation string\r\n",
+					"        :return:\r\n",
+					"        \"\"\"\r\n",
+					"        explanation = AnalysisExplanation(\r\n",
+					"            recognizer=self.__class__.__name__,\r\n",
+					"            original_score=original_score,\r\n",
+					"            textual_explanation=explanation,\r\n",
+					"        )\r\n",
+					"        return explanation\r\n",
+					"\r\n",
+					"    @staticmethod\r\n",
+					"    def __check_label(\r\n",
+					"        entity: str, label: str, check_label_groups: Tuple[Set, Set]\r\n",
+					"    ) -> bool:\r\n",
+					"        return any(\r\n",
+					"            [entity in egrp and label in lgrp for egrp, lgrp in check_label_groups]\r\n",
+					"        )"
+				],
+				"execution_count": 18
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"if __name__ == \"__main__\":\r\n",
+					"\r\n",
+					"    from presidio_analyzer import AnalyzerEngine, RecognizerRegistry\r\n",
+					"\r\n",
+					"    flair_recognizer = (\r\n",
+					"        FlairRecognizer()\r\n",
+					"    )  # This would download a very large (+2GB) model on the first run\r\n",
+					"\r\n",
+					"    registry = RecognizerRegistry()\r\n",
+					"    registry.add_recognizer(flair_recognizer)\r\n",
+					"\r\n",
+					"    analyzer = AnalyzerEngine(registry=registry)\r\n",
+					"\r\n",
+					"    results = analyzer.analyze(\r\n",
+					"        \"My name is Christopher and I live in Irbid.\",\r\n",
+					"        language=\"en\",\r\n",
+					"        return_decision_process=True,\r\n",
+					"    )\r\n",
+					"    for result in results:\r\n",
+					"        print(result)\r\n",
+					"        print(result.analysis_explanation)"
+				],
+				"execution_count": 21
 			},
 			{
 				"cell_type": "code",
