@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "8eaf7118-1a1c-4408-8440-c8a8584b2e66"
+				"spark.autotune.trackingId": "2b9c14b1-fadd-4905-aba8-823706e959af"
 			}
 		},
 		"metadata": {
@@ -138,7 +138,7 @@
 					")\r\n",
 					"from presidio_analyzer.nlp_engine import NlpArtifacts"
 				],
-				"execution_count": 15
+				"execution_count": 2
 			},
 			{
 				"cell_type": "code",
@@ -160,7 +160,7 @@
 					"except ImportError:\r\n",
 					"    print(\"Flair is not installed\")"
 				],
-				"execution_count": 16
+				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
@@ -410,6 +410,67 @@
 					"        print(result.analysis_explanation)"
 				],
 				"execution_count": 21
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from pyspark.sql import SparkSession\r\n",
+					"from pyspark.sql.functions import udf\r\n",
+					"from pyspark.sql.types import StringType\r\n",
+					"\r\n",
+					"# Initialize Spark session\r\n",
+					"spark = SparkSession.builder.appName(\"PresidioNER\").getOrCreate()\r\n",
+					"\r\n",
+					"# Sample data\r\n",
+					"data = [(\"My name is Christopher and I live in Irbid.\",)]\r\n",
+					"df = spark.createDataFrame(data, [\"text\"])\r\n",
+					"\r\n",
+					"# Broadcast necessary configurations or parameters (if any)\r\n",
+					"broadcast_config = spark.sparkContext.broadcast({\"language\": \"en\"})\r\n",
+					"\r\n",
+					"# Define a function to analyze and anonymize text\r\n",
+					"def analyze_and_anonymize(text):\r\n",
+					"    # Import Presidio components inside the function (ensures proper initialization)\r\n",
+					"    from presidio_analyzer import AnalyzerEngine\r\n",
+					"    from presidio_anonymizer import AnonymizerEngine\r\n",
+					"\r\n",
+					"    # Initialize analyzer and anonymizer\r\n",
+					"    analyzer = AnalyzerEngine()\r\n",
+					"    anonymizer = AnonymizerEngine()\r\n",
+					"\r\n",
+					"    # Analyze the text for PII\r\n",
+					"    language = broadcast_config.value[\"language\"]\r\n",
+					"    results = analyzer.analyze(text=text, entities=None, language=language)\r\n",
+					"\r\n",
+					"    # Anonymize the detected PII\r\n",
+					"    anonymized_text = anonymizer.anonymize(text=text, analyzer_results=results)\r\n",
+					"\r\n",
+					"    # Extract entities and anonymized text\r\n",
+					"    entities = [(result.entity_type, result.start, result.end) for result in results]\r\n",
+					"    return f\"Entities: {entities}, Anonymized Text: {anonymized_text.text}\"\r\n",
+					"\r\n",
+					"# Register the function as a UDF\r\n",
+					"presidio_udf = udf(analyze_and_anonymize, StringType())\r\n",
+					"\r\n",
+					"# Apply the UDF to the DataFrame\r\n",
+					"result_df = df.withColumn(\"result\", presidio_udf(df[\"text\"]))\r\n",
+					"\r\n",
+					"# Show the results\r\n",
+					"result_df.show(truncate=False)\r\n",
+					""
+				],
+				"execution_count": 5
 			},
 			{
 				"cell_type": "code",
