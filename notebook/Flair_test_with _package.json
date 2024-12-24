@@ -1,5 +1,5 @@
 {
-	"name": "Notebook 2",
+	"name": "Flair_test_with _package",
 	"properties": {
 		"nbformat": 4,
 		"nbformat_minor": 2,
@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "0bed46cb-fbea-420d-9694-85e14a833d39"
+				"spark.autotune.trackingId": "3068834e-23d9-4e29-8a56-2533b382b993"
 			}
 		},
 		"metadata": {
