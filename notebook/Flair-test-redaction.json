@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "02738f95-27de-4cc0-bbb8-dd358c62a917"
+				"spark.autotune.trackingId": "43b42b43-bfd6-4f5f-8818-ddbe0d7ff2e7"
 			}
 		},
 		"metadata": {
@@ -530,68 +530,6 @@
 					}
 				},
 				"source": [
-					"\r\n",
-					"from pyspark.sql.types import StructType, StructField, StringType\r\n",
-					"\r\n",
-					"\r\n",
-					"# Define the schema for the DataFrame\r\n",
-					"schema = StructType([\r\n",
-					"    StructField(\"id\", StringType(), True),\r\n",
-					"    StructField(\"sentence\", StringType(), True)\r\n",
-					"])\r\n",
-					"\r\n",
-					"# Create a list of sentences containing Name-related PII data\r\n",
-					"data = [\r\n",
-					"    (\"1\", \"My name is John Doe and I live in New York.\"),\r\n",
-					"    (\"2\", \"Alice Johnson is the project manager for the team.\"),\r\n",
-					"    (\"3\", \"The meeting was chaired by Dr. Emily Carter.\"),\r\n",
-					"    (\"4\", \"Hello, I am Michael Smith, pleased to meet you.\"),\r\n",
-					"    (\"5\", \"Jessica Brown submitted the report yesterday.\"),\r\n",
-					"]\r\n",
-					"\r\n",
-					"# Create the DataFrame\r\n",
-					"df = spark.createDataFrame(data, schema)\r\n",
-					"\r\n",
-					"# Show the DataFrame\r\n",
-					"df.show(truncate=False)\r\n",
-					""
-				],
-				"execution_count": 33
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"collapsed": false
-				},
-				"source": [
-					"final_df = anonymizeDataframeColumn(df,'sentence')\r\n",
-					"display(final_df)"
-				],
-				"execution_count": 34
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
 					"# Function to generate random sentences containing names\r\n",
 					"import random\r\n",
 					"def generate_sentences(num_rows):\r\n",
@@ -642,7 +580,7 @@
 					"final_df = anonymizeDataframeColumn(data,'sentence')\r\n",
 					"display(final_df)"
 				],
-				"execution_count": 40
+				"execution_count": 41
 			},
 			{
 				"cell_type": "code",
