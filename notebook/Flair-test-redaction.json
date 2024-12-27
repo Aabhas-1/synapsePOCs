@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "652fc077-e571-4dc0-97c1-64434616a2f7"
+				"spark.autotune.trackingId": "02738f95-27de-4cc0-bbb8-dd358c62a917"
 			}
 		},
 		"metadata": {
@@ -56,6 +56,7 @@
 					"from pyspark.sql.types import StringType\r\n",
 					"import pandas as pd\r\n",
 					"from presidio_analyzer import AnalyzerEngine, RecognizerRegistry\r\n",
+					"\r\n",
 					"from presidio_anonymizer import AnonymizerEngine\r\n",
 					"from presidio_anonymizer.entities import OperatorConfig\r\n",
 					"# from my_flair_recognizer import FlairRecognizer\r\n",
@@ -255,7 +256,20 @@
 					"            [entity in egrp and label in lgrp for egrp, lgrp in check_label_groups]\r\n",
 					"        )"
 				],
-				"execution_count": 1
+				"execution_count": 31
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Ineffienct Code"
+				]
 			},
 			{
 				"cell_type": "code",
@@ -271,38 +285,228 @@
 					}
 				},
 				"source": [
-					"def anonymizeDataframeColumn(df, anonymizedColumn):\r\n",
-					"    def anonymize_text(text: str) -> str:\r\n",
-					"        # Initialize the recognizer and engines locally\r\n",
-					"        flair_recognizer = FlairRecognizer()\r\n",
-					"        registry = RecognizerRegistry()\r\n",
-					"        registry.add_recognizer(flair_recognizer)\r\n",
+					"# def anonymizeDataframeColumn(df, anonymizedColumn):\r\n",
+					"#     def anonymize_text(text: str) -> str:\r\n",
+					"#         # Initialize the recognizer and engines locally\r\n",
+					"#         flair_recognizer = FlairRecognizer()\r\n",
+					"#         registry = RecognizerRegistry()\r\n",
+					"#         registry.add_recognizer(flair_recognizer)\r\n",
 					"        \r\n",
-					"        analyzer = AnalyzerEngine(registry=registry)\r\n",
-					"        anonymizer = AnonymizerEngine()\r\n",
+					"#         analyzer = AnalyzerEngine(registry=registry)\r\n",
+					"#         anonymizer = AnonymizerEngine()\r\n",
 					"        \r\n",
-					"        if text:\r\n",
-					"            # Perform analysis\r\n",
-					"            results = analyzer.analyze(\r\n",
-					"                text=text,\r\n",
-					"                language=\"en\",\r\n",
-					"                return_decision_process=True,\r\n",
-					"            )\r\n",
+					"#         if text:\r\n",
+					"#             # Perform analysis\r\n",
+					"#             results = analyzer.analyze(\r\n",
+					"#                 text=text,\r\n",
+					"#                 language=\"en\",\r\n",
+					"#                 return_decision_process=True,\r\n",
+					"#             )\r\n",
 					"            \r\n",
+					"#             # Perform anonymization\r\n",
+					"#             anonymized_results = anonymizer.anonymize(\r\n",
+					"#                 text=text,\r\n",
+					"#                 analyzer_results=results,\r\n",
+					"#                 operators={\"DEFAULT\": OperatorConfig(\"replace\", {\"new_value\": \"<ANONYMIZED>\"})},\r\n",
+					"#             )\r\n",
+					"#             return anonymized_results.text\r\n",
+					"#         else:\r\n",
+					"#             return text\r\n",
+					"    \r\n",
+					"#     @pandas_udf(StringType())\r\n",
+					"#     def anonymize_series(s: pd.Series) -> pd.Series:\r\n",
+					"#         return s.apply(anonymize_text)\r\n",
+					"    \r\n",
+					"#     # Apply the UDF\r\n",
+					"#     anonymized_df = df.withColumn(\r\n",
+					"#         anonymizedColumn, anonymize_series(col(anonymizedColumn))\r\n",
+					"#     )\r\n",
+					"#     return anonymized_df\r\n",
+					""
+				],
+				"execution_count": 20
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Replicating error recieved by Jeff"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# def anonymizeDataframeColumn(df, anonymizedColumn):\r\n",
+					"\r\n",
+					"#     # Initialize the recognizer and broadcast the lightweight registry\r\n",
+					"#     flair_recognizer = FlairRecognizer(supported_language=\"en\")\r\n",
+					"#     registry = RecognizerRegistry()\r\n",
+					"#     registry.add_recognizer(flair_recognizer)\r\n",
+					"#     broadcasted_registry = sc.broadcast(registry)\r\n",
+					"\r\n",
+					"#     # Broadcast other configurations\r\n",
+					"#     entity_list = [\"PERSON\"]\r\n",
+					"#     allow_list = []\r\n",
+					"#     broadcasted_config = sc.broadcast({\r\n",
+					"#         \"entity_list\": entity_list,\r\n",
+					"#         \"allow_list\": allow_list,\r\n",
+					"#     })\r\n",
+					"\r\n",
+					"#     def anonymize_text(text: str) -> str:\r\n",
+					"#         from presidio_analyzer import AnalyzerEngine\r\n",
+					"#         from presidio_anonymizer import AnonymizerEngine\r\n",
+					"\r\n",
+					"#         if text:\r\n",
+					"#             # Lazily initialize the engines using the broadcasted registry\r\n",
+					"#             registry = broadcasted_registry.value\r\n",
+					"#             analyzer = AnalyzerEngine(registry=registry)\r\n",
+					"#             anonymizer = AnonymizerEngine()\r\n",
+					"\r\n",
+					"#             # Retrieve configuration\r\n",
+					"#             config = broadcasted_config.value\r\n",
+					"\r\n",
+					"#             # Perform analysis\r\n",
+					"#             analyzer_results = analyzer.analyze(\r\n",
+					"#                 text=text,\r\n",
+					"#                 entities=config[\"entity_list\"],\r\n",
+					"#                 language=\"en\",\r\n",
+					"#                 allow_list=config[\"allow_list\"],\r\n",
+					"#             )\r\n",
+					"\r\n",
+					"#             # Perform anonymization\r\n",
+					"#             anonymized_results = anonymizer.anonymize(\r\n",
+					"#                 text=text,\r\n",
+					"#                 analyzer_results=analyzer_results,\r\n",
+					"#                 operators={\"DEFAULT\": {\"type\": \"replace\", \"new_value\": \"<ANONYMIZED>\"}},\r\n",
+					"#             )\r\n",
+					"#             return anonymized_results.text\r\n",
+					"#         else:\r\n",
+					"#             return text\r\n",
+					"\r\n",
+					"#     @pandas_udf(StringType())\r\n",
+					"#     def anonymize_series(s: pd.Series) -> pd.Series:\r\n",
+					"#         return s.apply(anonymize_text)\r\n",
+					"\r\n",
+					"#     # Apply the UDF\r\n",
+					"#     anonymized_df = df.withColumn(\r\n",
+					"#         anonymizedColumn, anonymize_series(col(anonymizedColumn))\r\n",
+					"#     )\r\n",
+					"#     return anonymized_df\r\n",
+					""
+				],
+				"execution_count": 22
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Benchmarking to be done for this code"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from presidio_anonymizer.entities import OperatorConfig\r\n",
+					"\r\n",
+					"def anonymizeDataframeColumn(df, anonymizedColumn):\r\n",
+					"    from presidio_analyzer.recognizer_registry import RecognizerRegistry\r\n",
+					"\r\n",
+					"    # Broadcast configurations\r\n",
+					"    entity_list = [\"PERSON\"]\r\n",
+					"    allow_list = []\r\n",
+					"    broadcasted_config = sc.broadcast({\r\n",
+					"        \"entity_list\": entity_list,\r\n",
+					"        \"allow_list\": allow_list,\r\n",
+					"    })\r\n",
+					"\r\n",
+					"    # Globals to ensure worker-level initialization\r\n",
+					"    def get_engines():\r\n",
+					"        \"\"\"\r\n",
+					"        Lazily initialize engines for each worker process.\r\n",
+					"        \"\"\"\r\n",
+					"        global analyzer_engine, anonymizer_engine\r\n",
+					"\r\n",
+					"        # Check if the engines are already initialized\r\n",
+					"        if \"analyzer_engine\" not in globals() or \"anonymizer_engine\" not in globals():\r\n",
+					"            from presidio_analyzer import AnalyzerEngine\r\n",
+					"            from presidio_anonymizer import AnonymizerEngine\r\n",
+					"            # from presidio_analyzer.recognizers.flair_recognizer import FlairRecognizer\r\n",
+					"\r\n",
+					"            # Initialize the registry and recognizer\r\n",
+					"            registry = RecognizerRegistry()\r\n",
+					"            flair_recognizer = FlairRecognizer(supported_language=\"en\")\r\n",
+					"            registry.add_recognizer(flair_recognizer)\r\n",
+					"\r\n",
+					"            # Initialize the engines\r\n",
+					"            analyzer_engine = AnalyzerEngine(registry=registry)\r\n",
+					"            anonymizer_engine = AnonymizerEngine()\r\n",
+					"\r\n",
+					"        return analyzer_engine, anonymizer_engine\r\n",
+					"\r\n",
+					"    def anonymize_text(text: str) -> str:\r\n",
+					"        if text:\r\n",
+					"            # Retrieve the engines\r\n",
+					"            analyzer, anonymizer = get_engines()\r\n",
+					"\r\n",
+					"            # Retrieve configuration\r\n",
+					"            config = broadcasted_config.value\r\n",
+					"\r\n",
+					"            # Perform analysis\r\n",
+					"            analyzer_results = analyzer.analyze(\r\n",
+					"                text=text,\r\n",
+					"                entities=config[\"entity_list\"],\r\n",
+					"                language=\"en\",\r\n",
+					"                allow_list=config[\"allow_list\"],\r\n",
+					"            )\r\n",
+					"\r\n",
 					"            # Perform anonymization\r\n",
 					"            anonymized_results = anonymizer.anonymize(\r\n",
 					"                text=text,\r\n",
-					"                analyzer_results=results,\r\n",
+					"                analyzer_results=analyzer_results,\r\n",
 					"                operators={\"DEFAULT\": OperatorConfig(\"replace\", {\"new_value\": \"<ANONYMIZED>\"})},\r\n",
 					"            )\r\n",
 					"            return anonymized_results.text\r\n",
 					"        else:\r\n",
 					"            return text\r\n",
-					"    \r\n",
+					"\r\n",
 					"    @pandas_udf(StringType())\r\n",
 					"    def anonymize_series(s: pd.Series) -> pd.Series:\r\n",
 					"        return s.apply(anonymize_text)\r\n",
-					"    \r\n",
+					"\r\n",
 					"    # Apply the UDF\r\n",
 					"    anonymized_df = df.withColumn(\r\n",
 					"        anonymizedColumn, anonymize_series(col(anonymizedColumn))\r\n",
@@ -310,7 +514,7 @@
 					"    return anonymized_df\r\n",
 					""
 				],
-				"execution_count": 2
+				"execution_count": 32
 			},
 			{
 				"cell_type": "code",
@@ -352,7 +556,7 @@
 					"df.show(truncate=False)\r\n",
 					""
 				],
-				"execution_count": 3
+				"execution_count": 33
 			},
 			{
 				"cell_type": "code",
@@ -372,7 +576,73 @@
 					"final_df = anonymizeDataframeColumn(df,'sentence')\r\n",
 					"display(final_df)"
 				],
-				"execution_count": 4
+				"execution_count": 34
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Function to generate random sentences containing names\r\n",
+					"import random\r\n",
+					"def generate_sentences(num_rows):\r\n",
+					"    first_names = [\"John\", \"Alice\", \"Robert\", \"Maria\", \"Michael\", \"Sophia\", \"James\", \"Emily\"]\r\n",
+					"    last_names = [\"Smith\", \"Johnson\", \"Brown\", \"Williams\", \"Jones\", \"Garcia\", \"Davis\", \"Martinez\"]\r\n",
+					"    templates = [\r\n",
+					"        \"{first} {last} went to the market.\",\r\n",
+					"        \"I met {first} yesterday.\",\r\n",
+					"        \"{first} {last} is my neighbor.\",\r\n",
+					"        \"{first} loves playing soccer.\",\r\n",
+					"        \"Have you seen {first} {last}?\",\r\n",
+					"        \"{first} and {last} are good friends.\"\r\n",
+					"    ]\r\n",
+					"    \r\n",
+					"    sentences = [\r\n",
+					"        random.choice(templates).format(\r\n",
+					"            first=random.choice(first_names),\r\n",
+					"            last=random.choice(last_names)\r\n",
+					"        ) for _ in range(num_rows)\r\n",
+					"    ]\r\n",
+					"    return sentences\r\n",
+					"\r\n",
+					"# Generate 1 million rows of sample data\r\n",
+					"num_rows = 1000000\r\n",
+					"sample_sentences = generate_sentences(num_rows)\r\n",
+					"\r\n",
+					"# Create a Spark DataFrame from the generated sentences\r\n",
+					"data = spark.createDataFrame([(s,) for s in sample_sentences], [\"sentence\"])\r\n",
+					""
+				],
+				"execution_count": 39
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"final_df = anonymizeDataframeColumn(data,'sentence')\r\n",
+					"display(final_df)"
+				],
+				"execution_count": 40
 			},
 			{
 				"cell_type": "code",
