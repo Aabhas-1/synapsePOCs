@@ -1,0 +1,591 @@
+{
+	"name": "Presidio demo test",
+	"properties": {
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "sparkpool",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "56g",
+			"driverCores": 8,
+			"executorMemory": "56g",
+			"executorCores": 8,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "176c93fd-2148-4f18-b69f-a3d98cc4ab37"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/22fcd409-b8a1-4dae-b3d9-88eba57831b8/resourceGroups/di_msft_offshore_sandbox/providers/Microsoft.Synapse/workspaces/dev--synapseworkspace/bigDataPools/sparkpool",
+				"name": "sparkpool",
+				"type": "Spark",
+				"endpoint": "https://dev--synapseworkspace.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparkpool",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 10,
+				"cores": 8,
+				"memory": 56,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"\r\n",
+					"try:\r\n",
+					"    import logging\r\n",
+					"    from typing import Optional, List, Tuple, Set\r\n",
+					"    from presidio_analyzer import AnalyzerEngine, PatternRecognizer, RecognizerResult, EntityRecognizer, AnalysisExplanation, RecognizerRegistry\r\n",
+					"    from presidio_analyzer.nlp_engine import NlpEngineProvider, NlpArtifacts, NlpEngine\r\n",
+					"    from presidio_anonymizer import AnonymizerEngine\r\n",
+					"    from presidio_anonymizer.entities import OperatorConfig\r\n",
+					"    from pyspark.sql.functions import pandas_udf\r\n",
+					"    from flair.data import Sentence\r\n",
+					"    from flair.models import SequenceTagger\r\n",
+					"    import pandas as pd\r\n",
+					"except:\r\n",
+					"    pass"
+				],
+				"execution_count": 1
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from pyspark.sql.functions import concat, current_timestamp, col, to_timestamp, regexp_replace, sha2, upper, lower, concat_ws, when, explode, from_json\r\n",
+					"from pyspark.sql.types import StringType"
+				],
+				"execution_count": 2
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"logger = logging.getLogger(\"presidio-analyzer\")"
+				],
+				"execution_count": 3
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"\r\n",
+					"class FlairRecognizer(EntityRecognizer):\r\n",
+					"    \"\"\"\r\n",
+					"    Wrapper for a flair model, if needed to be used within Presidio Analyzer.\r\n",
+					"    :example:\r\n",
+					"    >from presidio_analyzer import AnalyzerEngine, RecognizerRegistry\r\n",
+					"    >flair_recognizer = FlairRecognizer()\r\n",
+					"    >registry = RecognizerRegistry()\r\n",
+					"    >registry.add_recognizer(flair_recognizer)\r\n",
+					"    >analyzer = AnalyzerEngine(registry=registry)\r\n",
+					"    >results = analyzer.analyze(\r\n",
+					"    >    \"My name is Christopher and I live in Irbid.\",\r\n",
+					"    >    language=\"en\",\r\n",
+					"    >    return_decision_process=True,\r\n",
+					"    >)\r\n",
+					"    >for result in results:\r\n",
+					"    >    print(result)\r\n",
+					"    >    print(result.analysis_explanation)\r\n",
+					"    \"\"\"\r\n",
+					"\r\n",
+					"    ENTITIES = [\r\n",
+					"        \"LOCATION\",\r\n",
+					"        \"PERSON\",\r\n",
+					"        \"ORGANIZATION\",\r\n",
+					"        # \"MISCELLANEOUS\"   # - There are no direct correlation with Presidio entities.\r\n",
+					"    ]\r\n",
+					"\r\n",
+					"    DEFAULT_EXPLANATION = \"Identified as {} by Flair's Named Entity Recognition\"\r\n",
+					"\r\n",
+					"    CHECK_LABEL_GROUPS = [\r\n",
+					"        ({\"LOCATION\"}, {\"LOC\", \"LOCATION\"}),\r\n",
+					"        ({\"PERSON\"}, {\"PER\", \"PERSON\"}),\r\n",
+					"        ({\"ORGANIZATION\"}, {\"ORG\"}),\r\n",
+					"        # ({\"MISCELLANEOUS\"}, {\"MISC\"}), # Probably not PII\r\n",
+					"    ]\r\n",
+					"\r\n",
+					"    MODEL_LANGUAGES = {\"en\": \"flair/ner-english-large\"}\r\n",
+					"\r\n",
+					"    PRESIDIO_EQUIVALENCES = {\r\n",
+					"        \"PER\": \"PERSON\",\r\n",
+					"        \"LOC\": \"LOCATION\",\r\n",
+					"        \"ORG\": \"ORGANIZATION\",\r\n",
+					"        # 'MISC': 'MISCELLANEOUS'   # - Probably not PII\r\n",
+					"    }\r\n",
+					"\r\n",
+					"    def __init__(\r\n",
+					"        self,\r\n",
+					"        supported_language: str = \"en\",\r\n",
+					"        supported_entities: Optional[List[str]] = None,\r\n",
+					"        check_label_groups: Optional[Tuple[Set, Set]] = None,\r\n",
+					"        model: SequenceTagger = None,\r\n",
+					"        model_path: Optional[str] = None,\r\n",
+					"    ):\r\n",
+					"        self.check_label_groups = (\r\n",
+					"            check_label_groups if check_label_groups else self.CHECK_LABEL_GROUPS\r\n",
+					"        )\r\n",
+					"\r\n",
+					"        supported_entities = supported_entities if supported_entities else self.ENTITIES\r\n",
+					"\r\n",
+					"        if model and model_path:\r\n",
+					"            raise ValueError(\"Only one of model or model_path should be provided.\")\r\n",
+					"        elif model and not model_path:\r\n",
+					"            self.model = model\r\n",
+					"        elif not model and model_path:\r\n",
+					"            print(f\"Loading model from {model_path}\")\r\n",
+					"            self.model = SequenceTagger.load(model_path)\r\n",
+					"        else:\r\n",
+					"            print(f\"Loading model for language {supported_language}\")\r\n",
+					"            self.model = SequenceTagger.load(\r\n",
+					"                self.MODEL_LANGUAGES.get(supported_language)\r\n",
+					"            )\r\n",
+					"\r\n",
+					"        super().__init__(\r\n",
+					"            supported_entities=supported_entities,\r\n",
+					"            supported_language=supported_language,\r\n",
+					"            name=\"Flair Analytics\",\r\n",
+					"        )\r\n",
+					"\r\n",
+					"    def load(self) -> None:\r\n",
+					"        \"\"\"Load the model, not used. Model is loaded during initialization.\"\"\"\r\n",
+					"        pass\r\n",
+					"\r\n",
+					"    def get_supported_entities(self) -> List[str]:\r\n",
+					"        \"\"\"\r\n",
+					"        Return supported entities by this model.\r\n",
+					"        :return: List of the supported entities.\r\n",
+					"        \"\"\"\r\n",
+					"        return self.supported_entities\r\n",
+					"\r\n",
+					"    # Class to use Flair with Presidio as an external recognizer.\r\n",
+					"    def analyze(\r\n",
+					"        self, text: str, entities: List[str], nlp_artifacts: NlpArtifacts = None\r\n",
+					"    ) -> List[RecognizerResult]:\r\n",
+					"        \"\"\"\r\n",
+					"        Analyze text using Text Analytics.\r\n",
+					"        :param text: The text for analysis.\r\n",
+					"        :param entities: Not working properly for this recognizer.\r\n",
+					"        :param nlp_artifacts: Not used by this recognizer.\r\n",
+					"        :param language: Text language. Supported languages in MODEL_LANGUAGES\r\n",
+					"        :return: The list of Presidio RecognizerResult constructed from the recognized\r\n",
+					"            Flair detections.\r\n",
+					"        \"\"\"\r\n",
+					"\r\n",
+					"        results = []\r\n",
+					"\r\n",
+					"        sentences = Sentence(text)\r\n",
+					"        self.model.predict(sentences)\r\n",
+					"\r\n",
+					"        # If there are no specific list of entities, we will look for all of it.\r\n",
+					"        if not entities:\r\n",
+					"            entities = self.supported_entities\r\n",
+					"\r\n",
+					"        for entity in entities:\r\n",
+					"            if entity not in self.supported_entities:\r\n",
+					"                continue\r\n",
+					"\r\n",
+					"            for ent in sentences.get_spans(\"ner\"):\r\n",
+					"                if not self.__check_label(\r\n",
+					"                    entity, ent.labels[0].value, self.check_label_groups\r\n",
+					"                ):\r\n",
+					"                    continue\r\n",
+					"                textual_explanation = self.DEFAULT_EXPLANATION.format(\r\n",
+					"                    ent.labels[0].value\r\n",
+					"                )\r\n",
+					"                explanation = self.build_flair_explanation(\r\n",
+					"                    round(ent.score, 2), textual_explanation\r\n",
+					"                )\r\n",
+					"                flair_result = self._convert_to_recognizer_result(ent, explanation)\r\n",
+					"\r\n",
+					"                results.append(flair_result)\r\n",
+					"\r\n",
+					"        return results\r\n",
+					"\r\n",
+					"    def _convert_to_recognizer_result(self, entity, explanation) -> RecognizerResult:\r\n",
+					"        entity_type = self.PRESIDIO_EQUIVALENCES.get(entity.tag, entity.tag)\r\n",
+					"        flair_score = round(entity.score, 2)\r\n",
+					"\r\n",
+					"        flair_results = RecognizerResult(\r\n",
+					"            entity_type=entity_type,\r\n",
+					"            start=entity.start_position,\r\n",
+					"            end=entity.end_position,\r\n",
+					"            score=flair_score,\r\n",
+					"            analysis_explanation=explanation,\r\n",
+					"        )\r\n",
+					"\r\n",
+					"        return flair_results\r\n",
+					"\r\n",
+					"    def build_flair_explanation(\r\n",
+					"        self, original_score: float, explanation: str\r\n",
+					"    ) -> AnalysisExplanation:\r\n",
+					"        \"\"\"\r\n",
+					"        Create explanation for why this result was detected.\r\n",
+					"        :param original_score: Score given by this recognizer\r\n",
+					"        :param explanation: Explanation string\r\n",
+					"        :return:\r\n",
+					"        \"\"\"\r\n",
+					"        explanation = AnalysisExplanation(\r\n",
+					"            recognizer=self.__class__.__name__,\r\n",
+					"            original_score=original_score,\r\n",
+					"            textual_explanation=explanation,\r\n",
+					"        )\r\n",
+					"        return explanation\r\n",
+					"\r\n",
+					"    @staticmethod\r\n",
+					"    def __check_label(\r\n",
+					"        entity: str, label: str, check_label_groups: Tuple[Set, Set]\r\n",
+					"    ) -> bool:\r\n",
+					"        return any(\r\n",
+					"            [entity in egrp and label in lgrp for egrp, lgrp in check_label_groups]\r\n",
+					"        )\r\n",
+					"\r\n",
+					""
+				],
+				"execution_count": 4
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def create_nlp_engine_with_flair(\r\n",
+					") -> Tuple[NlpEngine, RecognizerRegistry]:\r\n",
+					"    \"\"\"\r\n",
+					"    Instantiate an NlpEngine with a FlairRecognizer and a small spaCy model.\r\n",
+					"    The FlairRecognizer would return results from Flair models, the spaCy model\r\n",
+					"    would return NlpArtifacts such as POS and lemmas.\r\n",
+					"    :param model_path: Flair model path.\r\n",
+					"    \"\"\"\r\n",
+					"\r\n",
+					"\r\n",
+					"    registry = RecognizerRegistry()\r\n",
+					"    registry.load_predefined_recognizers()\r\n",
+					"\r\n",
+					"    # there is no official Flair NlpEngine, hence we load it as an additional recognizer\r\n",
+					"\r\n",
+					"    flair_recognizer = FlairRecognizer()\r\n",
+					"    nlp_configuration = {\r\n",
+					"        \"nlp_engine_name\": \"spacy\",\r\n",
+					"        \"models\": [{\"lang_code\": \"en\", \"model_name\": \"en_core_web_lg\"}],\r\n",
+					"    }\r\n",
+					"    registry.add_recognizer(flair_recognizer)\r\n",
+					"    registry.remove_recognizer(\"SpacyRecognizer\")\r\n",
+					"\r\n",
+					"    nlp_engine = NlpEngineProvider(nlp_configuration=nlp_configuration).create_engine()\r\n",
+					"\r\n",
+					"    return nlp_engine, registry"
+				],
+				"execution_count": 5
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def anonymizeDataframeColumn(df, anonymizedColumn, datafile_path=None):\r\n",
+					"    \r\n",
+					"\r\n",
+					"    # preredactionFunctionName  = { 'SurveyPlatform/msfp_questionresponse.delta' : redact_surveyPlatform_msfp_questionresponse,\r\n",
+					"    #                               'FSIExport/msfp_questionresponse.delta' : redact_fsiexport_msfp_questionresponse}\r\n",
+					"\r\n",
+					"    # Define empty allow list\r\n",
+					"    allow_list = []\r\n",
+					"\r\n",
+					"\r\n",
+					"\r\n",
+					"    \r\n",
+					"    # if datafile_path in preredactionFunctionName.keys():\r\n",
+					"    #     df, tpids_list = preredactionFunctionName[datafile_path](df, anonymizedColumn)\r\n",
+					"    #     # Add TPIDs to allow list\r\n",
+					"    #     allow_list.extend(tpids_list)\r\n",
+					"\r\n",
+					"\r\n",
+					"    # # Add custom analyzers if needed in the createCustomAnalyzers function above 8/9/23 SJ\r\n",
+					"    # custom_analyzer_list, custom_analyzer_entities = createCustomAnalyzers()\r\n",
+					"    # [analyzer.registry.add_recognizer(recognizer) for recognizer in custom_analyzer_list]\r\n",
+					"\r\n",
+					"\r\n",
+					"\r\n",
+					"    entity_list = [\"PHONE_NUMBER\",\"PERSON\",\"EMAIL_ADDRESS\"]\r\n",
+					"\r\n",
+					"    broadcasted_config = sc.broadcast({\r\n",
+					"        \"entity_list\": entity_list,\r\n",
+					"        \"allow_list\": allow_list,\r\n",
+					"    })\r\n",
+					"    # entity_list.extend(custom_analyzer_entities)\r\n",
+					"    print(f\"Anonymizing the following entity_list: {entity_list}\")\r\n",
+					"\r\n",
+					"\r\n",
+					"     # Globals to ensure worker-level initialization\r\n",
+					"    def get_engines():\r\n",
+					"        \"\"\"\r\n",
+					"        Lazily initialize engines for each worker process.\r\n",
+					"        \"\"\"\r\n",
+					"        global analyzer_engine, anonymizer_engine\r\n",
+					"        \r\n",
+					"        # Create the NLP engine and registry\r\n",
+					"        nlp_engine, registry = create_nlp_engine_with_flair()\r\n",
+					"\r\n",
+					"        # Initialize the AnalyzerEngine with the created NLP engine and registry\r\n",
+					"        analyzer = AnalyzerEngine(nlp_engine=nlp_engine, registry=registry)\r\n",
+					"        \r\n",
+					"        # Initialize the engines\r\n",
+					"        analyzer_engine = AnalyzerEngine(registry=registry)\r\n",
+					"        anonymizer_engine = AnonymizerEngine()\r\n",
+					"\r\n",
+					"        return analyzer_engine, anonymizer_engine\r\n",
+					"    \r\n",
+					"    def anonymize_text(text: str) -> str:\r\n",
+					"        # analyzer will throw an error if the text is null\r\n",
+					"        if text:\r\n",
+					"            # Retrieve the engines\r\n",
+					"            analyzer, anonymizer = get_engines()\r\n",
+					"\r\n",
+					"            # Retrieve configuration\r\n",
+					"            config = broadcasted_config.value\r\n",
+					"\r\n",
+					"            # Perform analysis\r\n",
+					"            analyzer_results = analyzer.analyze(\r\n",
+					"                text=text,\r\n",
+					"                entities=config[\"entity_list\"],\r\n",
+					"                language=\"en\",\r\n",
+					"                allow_list=config[\"allow_list\"],\r\n",
+					"            )\r\n",
+					"            \r\n",
+					"            anonymized_results = anonymizer.anonymize(\r\n",
+					"                text=text,\r\n",
+					"                analyzer_results=analyzer_results,\r\n",
+					"            )\r\n",
+					"            return anonymized_results.text\r\n",
+					"        else:\r\n",
+					"            return text\r\n",
+					"    \r\n",
+					"    @pandas_udf(StringType())\r\n",
+					"    def anonymize_series(s: pd.Series) -> pd.Series:\r\n",
+					"        return s.apply(anonymize_text)\r\n",
+					"    \r\n",
+					"    # apply the udf\r\n",
+					"    anonymized_df = df.withColumn(\r\n",
+					"        anonymizedColumn, anonymize_series(col(anonymizedColumn))\r\n",
+					"    )\r\n",
+					"    \r\n",
+					"    return anonymized_df "
+				],
+				"execution_count": 6
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"import random\r\n",
+					"\r\n",
+					"def generate_sentences_with_contacts(num_rows):\r\n",
+					"    first_names = [\"John\", \"Alice\", \"Robert\", \"Maria\", \"Michael\", \"Sophia\", \"James\", \"Emily\"]\r\n",
+					"    last_names = [\"Smith\", \"Johnson\", \"Brown\", \"Williams\", \"Jones\", \"Garcia\", \"Davis\", \"Martinez\"]\r\n",
+					"    domains = [\"gmail.com\", \"yahoo.com\", \"outlook.com\", \"example.com\"]\r\n",
+					"    templates = [\r\n",
+					"        \"{first} {last} went to the market.\",\r\n",
+					"        \"I met {first} yesterday.\",\r\n",
+					"        \"{first} {last} is my neighbor.\",\r\n",
+					"        \"{first} loves playing soccer.\",\r\n",
+					"        \"Have you seen {first} {last}?\",\r\n",
+					"        \"{first} and {last} are good friends.\"\r\n",
+					"    ]\r\n",
+					"\r\n",
+					"    def generate_random_email(first, last):\r\n",
+					"        \"\"\"Generate a random email address.\"\"\"\r\n",
+					"        return f\"{first.lower()}.{last.lower()}@{random.choice(domains)}\"\r\n",
+					"\r\n",
+					"    def generate_random_phone():\r\n",
+					"        \"\"\"Generate a random phone number.\"\"\"\r\n",
+					"        return f\"+1-{random.randint(100, 999)}-{random.randint(100, 999)}-{random.randint(1000, 9999)}\"\r\n",
+					"\r\n",
+					"    sentences = [\r\n",
+					"        random.choice(templates).format(\r\n",
+					"            first=random.choice(first_names),\r\n",
+					"            last=random.choice(last_names)\r\n",
+					"        ) + f\" Contact: {generate_random_email(random.choice(first_names), random.choice(last_names))}, Phone: {generate_random_phone()}.\"\r\n",
+					"        for _ in range(num_rows)\r\n",
+					"    ]\r\n",
+					"    return sentences\r\n",
+					"\r\n",
+					"# Generate 100 rows of sample data with email addresses and phone numbers\r\n",
+					"num_rows = 100\r\n",
+					"sample_sentences_with_contacts = generate_sentences_with_contacts(num_rows)\r\n",
+					"\r\n",
+					"# Create a Spark DataFrame from the generated sentences\r\n",
+					"data = spark.createDataFrame([(s,) for s in sample_sentences_with_contacts], [\"sentence\"])\r\n",
+					""
+				],
+				"execution_count": 11
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"display(data)"
+				],
+				"execution_count": 12
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"final_df = anonymizeDataframeColumn(data,'sentence')\r\n",
+					"display(final_df)"
+				],
+				"execution_count": 13
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Sample text to analyze\r\n",
+					"text = \"John Doe works at OpenAI and lives in San Francisco. His contact number is +919599727959\"\r\n",
+					"\r\n",
+					"# Specify the language (e.g., English)\r\n",
+					"language = \"en\"\r\n",
+					"\r\n",
+					"# Analyze the text\r\n",
+					"results = analyzer.analyze(text=text, language=language)\r\n",
+					"\r\n",
+					"print(results)\r\n",
+					"# Print the results\r\n",
+					"for result in results:\r\n",
+					"    print(f\"Entity: {result.entity_type}, Confidence: {result.score}\")\r\n",
+					""
+				],
+				"execution_count": 10
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					""
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
